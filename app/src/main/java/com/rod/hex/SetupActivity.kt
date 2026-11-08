@@ -12,6 +12,16 @@ import android.util.Log
 class SetupActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handle(intent)
+    }
+
+    // Si l'écran de configuration est déjà ouvert, la nouvelle config arrive ici
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handle(intent)
+    }
+
+    private fun handle(intent: Intent?) {
         val p = HexApp.of(this).prefs
         intent?.extras?.let { x ->
             x.getString("claude")?.takeIf { it.isNotBlank() }?.let { p.claudeKey = it.trim() }

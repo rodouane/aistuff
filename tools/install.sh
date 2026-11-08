@@ -33,7 +33,8 @@ for pair in claude:CLAUDE tts:TTS pin:PIN model:MODEL budget:BUDGET; do
   v="$(get "${pair#*:}")"
   if [ -n "$v" ]; then ARGS+=(--es "${pair%%:*}" "$v"); fi
 done
-adb shell am start -n "$PKG/.SetupActivity" "${ARGS[@]}"
+[ -n "$(get CLAUDE)" ] || echo "   ATTENTION : pas de clé CLAUDE= dans hex-config.txt, Hex restera sur « LANCE LE SCRIPT »."
+adb shell am start -S -n "$PKG/.SetupActivity" "${ARGS[@]}"
 
 echo
 echo "Terminé. Au premier démarrage, Hex télécharge son modèle « Hey Hex » (environ 40 Mo), puis se présente."
