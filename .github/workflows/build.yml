@@ -39,20 +39,28 @@ jobs:
       - name: Compiler
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Renommer l'APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk hex.apk
+      - name: Préparer le pack d'installation
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk hex.apk
+          mkdir -p hex-installation
+          cp hex.apk tools/install.sh tools/install.bat tools/hex-config.exemple.txt hex-installation/
+          cp tools/hex-config.exemple.txt hex-installation/hex-config.txt
+          chmod +x hex-installation/install.sh
+          zip -r hex-installation.zip hex-installation
 
       - uses: actions/upload-artifact@v4
         with:
           name: hex-apk
-          path: hex.apk
+          path: |
+            hex.apk
+            hex-installation.zip
 
       - name: Publier la dernière version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete derniere-version --yes --cleanup-tag || true
-          gh release create derniere-version hex.apk \
+          gh release create derniere-version hex.apk hex-installation.zip \
             --title "Hex · dernière version" \
             --notes "APK construit automatiquement depuis le commit ${GITHUB_SHA::7}." \
             --latest

@@ -14,10 +14,9 @@ Compte environ une heure la première fois, dont la moitié pour créer les comp
 | Service | Ce qu'il faut récupérer | Où |
 | --- | --- | --- |
 | Claude (obligatoire) | Une clé API qui commence par `sk-ant-`. Ajoute quelques euros de crédit. | [platform.claude.com](https://platform.claude.com), menu API Keys |
-| Picovoice (conseillé) | L'**AccessKey**, puis le fichier du mot « Hey Hex » | [console.picovoice.ai](https://console.picovoice.ai) |
 | Google Cloud (facultatif, pour la voix réaliste) | Une clé API, avec l'API « Cloud Text-to-Speech » activée | [console.cloud.google.com](https://console.cloud.google.com) |
 
-**Le mot « Hey Hex » chez Picovoice :** dans Porcupine, crée un mot d'activation « Hey Hex », langue anglaise, plateforme **Android**. Télécharge le fichier `.ppn` et pose-le dans le dossier `tools` de ce projet. Sans ce fichier, Hex répond au mot « Jarvis » en attendant.
+**« Hey Hex » :** rien à créer. Au premier démarrage, Hex télécharge un petit modèle vocal libre (Vosk, environ 40 Mo) et détecte ensuite son nom sans Internet.
 
 **Google Cloud :** il demande une carte bancaire même pour l'offre gratuite. Pour sécuriser la clé, limite-la à l'API Text-to-Speech. Sans cette clé, Hex parle avec la voix d'Android, moins naturelle.
 
@@ -47,7 +46,7 @@ Dans le dossier `tools` :
 - Mac ou Linux : `./install.sh hex.apk`
 - Windows : `install.bat hex.apk`
 
-Le script installe Hex, le rend propriétaire du téléphone (mode kiosque), donne les permissions des Glyph, pose le mot « Hey Hex » et envoie tes clés. Hex se présente ensuite et lance la découverte : environ quinze minutes de discussion pour faire connaissance.
+Le script installe Hex, le rend propriétaire du téléphone (mode kiosque), donne les permissions des Glyph et envoie tes clés. Hex se présente ensuite et lance la découverte : environ quinze minutes de discussion pour faire connaissance.
 
 ### Au quotidien
 
@@ -69,13 +68,13 @@ Les réglages cachés permettent d'ajouter un Wi-Fi, de voir la dépense du mois
 
 - **« Not allowed to set the device owner »** : il reste un compte sur le téléphone. Refais une remise à zéro et passe l'étape Google.
 - **Les Glyph ne s'allument pas** : relance `adb shell settings put global nt_glyph_interface_debug_enable 1`. Hex relance ce mode tout seul toutes les 6 heures, mais seulement si l'étape 4 du script a réussi.
-- **Hex ne réagit pas à « Hey Hex »** : vérifie l'AccessKey Picovoice et le fichier `.ppn` (plateforme Android). Le bouton volume bas marche dans tous les cas.
+- **Hex ne réagit pas à « Hey Hex »** : au premier démarrage, il doit être en Wi-Fi pour télécharger son modèle. Le bouton volume bas marche dans tous les cas.
 
 ## Technique
 
 - App Android en Kotlin, sans bibliothèque d'interface, pour Android 13 et plus (le Phone 1 est sous Android 15).
 - Claude via le SDK Java officiel d'Anthropic (modèle par défaut : `claude-haiku-5-5`), avec un compteur qui bloque à 10 € par mois.
-- Mot d'activation : Picovoice Porcupine, sur le téléphone. Transcription : reconnaissance vocale d'Android, en français.
+- Mot d'activation : Vosk (libre, sur le téléphone, modèle anglais small). Transcription : reconnaissance vocale d'Android, en français.
 - Voix : Google Cloud Text-to-Speech (`fr-FR-Chirp3-HD-Charon`), avec la voix d'Android en secours.
 - Glyph : SDK Glyph de Nothing, téléchargé par la CI et appelé par réflexion (Hex marche sans).
 - Mémoire : `memory.json` dans le stockage privé de l'app (profil, projets, journal, running), mise à jour par Claude après chaque conversation.

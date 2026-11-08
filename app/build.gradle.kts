@@ -52,8 +52,8 @@ android {
 dependencies {
     // Claude (SDK officiel Anthropic)
     implementation("com.anthropic:anthropic-java:3.6.0")
-    // Mot d'activation "Hey Hex" (sur l'appareil)
-    implementation("ai.picovoice:porcupine-android:4.0.2")
+    // Mot d'activation "Hey Hex" (sur l'appareil, gratuit, sans compte)
+    implementation("com.alphacephei:vosk-android:0.3.75")
     // SDK Glyph de Nothing : téléchargé par la CI dans app/libs (utilisé par réflexion)
     val glyph = file("libs/glyph-sdk.aar")
     if (glyph.exists()) implementation(files(glyph))

@@ -4,9 +4,6 @@
 # Clé API Claude (platform.claude.com > API Keys), commence par sk-ant-
 CLAUDE=
 
-# AccessKey Picovoice (console.picovoice.ai), pour « Hey Hex »
-PICOVOICE=
-
 # Clé API Google Cloud avec l'API Text-to-Speech activée (voix réaliste). Facultatif.
 TTS=
 

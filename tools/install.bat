@@ -16,36 +16,23 @@ for /f "usebackq tokens=1,* delims==" %%a in ("hex-config.txt") do (
   if not "!line:~0,1!"=="#" set "%%a=%%b"
 )
 
-echo 1/6  Telephone detecte ?
+echo 1/5  Telephone detecte ?
 adb wait-for-device
 adb devices
 
-echo 2/6  Installation de Hex
+echo 2/5  Installation de Hex
 adb install -r "%APK%"
 
-echo 3/6  Hex devient proprietaire de l'appareil (mode kiosque)
+echo 3/5  Hex devient proprietaire de l'appareil (mode kiosque)
 adb shell dpm set-device-owner %PKG%/.HexAdminReceiver
 
-echo 4/6  Permissions Glyph
+echo 4/5  Permissions Glyph
 adb shell pm grant %PKG% android.permission.WRITE_SECURE_SETTINGS
 adb shell settings put global nt_glyph_interface_debug_enable 1
 
-echo 5/6  Mot d'activation "Hey Hex"
-set PPN=
-for %%f in (*.ppn) do if not defined PPN set PPN=%%f
-if defined PPN (
-  adb push "!PPN!" /data/local/tmp/hey-hex.ppn
-  adb shell run-as %PKG% mkdir -p files
-  adb shell run-as %PKG% cp /data/local/tmp/hey-hex.ppn files/hey-hex.ppn
-  adb shell rm /data/local/tmp/hey-hex.ppn
-) else (
-  echo    Pas de fichier .ppn : Hex repondra a "Jarvis" en attendant.
-)
-
-echo 6/6  Envoi de la configuration
+echo 5/5  Envoi de la configuration
 set ARGS=
 if defined CLAUDE set ARGS=!ARGS! --es claude !CLAUDE!
-if defined PICOVOICE set ARGS=!ARGS! --es picovoice !PICOVOICE!
 if defined TTS set ARGS=!ARGS! --es tts !TTS!
 if defined PIN set ARGS=!ARGS! --es pin !PIN!
 if defined MODEL set ARGS=!ARGS! --es model !MODEL!
