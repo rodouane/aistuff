@@ -30,7 +30,7 @@ class HexEngine(private val context: Context) {
     private val observers = CopyOnWriteArrayList<Observer>()
 
     private val brain = Brain(context)
-    private val voice = Voice(context)
+    val voice = Voice(context)
     private val listener = Listener(context)
     val wake = WakeWord(context) { main.post { trigger() } }
 

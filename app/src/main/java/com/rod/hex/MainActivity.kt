@@ -239,6 +239,39 @@ class MainActivity : Activity(), HexEngine.Observer {
         try { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {}
     }
 
+    // ---------- Choix de la voix : on écoute, on garde ----------
+    private fun chooseVoice() {
+        val v = engine?.voice ?: return
+        val voices = v.frenchVoices()
+        if (voices.isEmpty()) {
+            Toast.makeText(this, "Aucune voix française sur le téléphone.", Toast.LENGTH_LONG).show(); return
+        }
+        val labels = voices.mapIndexed { i, x ->
+            "Voix ${i + 1}" + (if (x.locale.country != "FR") " (${x.locale.country})" else "") +
+                (if (x.isNetworkConnectionRequired) " · Internet" else "")
+        }.toTypedArray()
+        var pick = voices.indexOfFirst { it.name == app.prefs.androidVoice }.coerceAtLeast(0)
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Touche une voix pour l'écouter")
+            .setSingleChoiceItems(labels, pick) { _, i -> pick = i; v.preview(voices[i].name, app.prefs.voicePitch) }
+            .setPositiveButton("Garder") { _, _ -> app.prefs.androidVoice = voices[pick].name; chooseTone(voices[pick].name) }
+            .setNegativeButton("Annuler") { _, _ -> v.applyChoice() }
+            .show()
+    }
+
+    private fun chooseTone(name: String) {
+        val v = engine?.voice ?: return
+        val tones = floatArrayOf(0.75f, 0.88f, 1f, 1.12f)
+        val labels = arrayOf("Très grave", "Grave", "Normal", "Plus aigu")
+        var pick = tones.indexOfFirst { kotlin.math.abs(it - app.prefs.voicePitch) < 0.01f }.let { if (it < 0) 2 else it }
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Le ton")
+            .setSingleChoiceItems(labels, pick) { _, i -> pick = i; v.preview(name, tones[i]) }
+            .setPositiveButton("Garder") { _, _ -> app.prefs.voicePitch = tones[pick]; v.applyChoice() }
+            .setNegativeButton("Annuler") { _, _ -> v.applyChoice() }
+            .show()
+    }
+
     // ---------- Sortie cachée : 5 tapes dans le coin haut gauche, puis le code ----------
     private fun secretCorner() {
         val now = System.currentTimeMillis()
@@ -255,7 +288,7 @@ class MainActivity : Activity(), HexEngine.Observer {
 
     private fun adminMenu() {
         val items = arrayOf("Ajouter un Wi-Fi", "Ouvrir le clavier", "Refaire la découverte (efface la mémoire)",
-            "Quitter le mode kiosque", "Revenir en mode kiosque", "Rendre le téléphone normal (retirer Hex)")
+            "Quitter le mode kiosque", "Revenir en mode kiosque", "Rendre le téléphone normal (retirer Hex)", "Choisir la voix")
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Hex · réglages  (dépense du mois : %.2f €)".format(app.budget.spentEur))
             .setItems(items) { _, which ->
@@ -268,6 +301,7 @@ class MainActivity : Activity(), HexEngine.Observer {
                         .setNegativeButton("Annuler", null).show()
                     3 -> emergencyExit()
                     4 -> { app.prefs.kioskOn = true; Kiosk.sync(this) }
+                    6 -> chooseVoice()
                     5 -> { app.prefs.kioskOn = false; Kiosk.removeOwner(this)
                         Toast.makeText(this, "Hex n'est plus propriétaire. Tu peux le désinstaller.", Toast.LENGTH_LONG).show()
                         try { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {} }

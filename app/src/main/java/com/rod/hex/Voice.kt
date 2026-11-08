@@ -48,13 +48,35 @@ class Voice(private val context: Context) {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts?.language = Locale.FRANCE
-                tts?.voices?.filter { it.locale.language == "fr" && !it.isNetworkConnectionRequired }
-                    ?.firstOrNull { it.name.contains("male", true) && !it.name.contains("female", true) }
-                    ?.let { tts?.voice = it }
+                applyChoice()
                 ttsReady = true
             }
         }
         Thread({ worker() }, "hex-voice").apply { isDaemon = true; start() }
+    }
+
+    /** Voix françaises disponibles sur le téléphone, celles hors ligne d'abord. */
+    fun frenchVoices(): List<android.speech.tts.Voice> =
+        (tts?.voices ?: emptySet()).filter { it.locale.language == "fr" }
+            .sortedWith(compareBy({ it.isNetworkConnectionRequired }, { it.locale.country != "FR" }, { it.name }))
+
+    /** Applique la voix et le ton enregistrés (ou une voix masculine par défaut). */
+    fun applyChoice() {
+        val engine = tts ?: return
+        val all = frenchVoices()
+        val chosen = all.firstOrNull { it.name == app.prefs.androidVoice }
+            ?: all.firstOrNull { !it.isNetworkConnectionRequired && it.name.contains("male", true) && !it.name.contains("female", true) }
+        chosen?.let { engine.voice = it }
+        engine.setPitch(app.prefs.voicePitch)
+    }
+
+    /** Fait écouter une voix et un ton sans les enregistrer. */
+    fun preview(name: String, pitch: Float) {
+        val engine = tts ?: return
+        stop()
+        frenchVoices().firstOrNull { it.name == name }?.let { engine.voice = it }
+        engine.setPitch(pitch)
+        engine.speak("Salut Rod, c'est Hex. Ça te va, cette voix ?", TextToSpeech.QUEUE_FLUSH, Bundle(), "preview")
     }
 
     fun begin(l: Listener) {
