@@ -73,6 +73,8 @@ class MainActivity : Activity(), HexEngine.Observer {
         setContentView(root)
 
         val gestures = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            // Sans ça, Android croit que personne ne veut le geste et le transforme en appui long
+            override fun onDown(e: MotionEvent): Boolean = true
             override fun onSingleTapUp(e: MotionEvent): Boolean {
                 engine?.trigger(); return true
             }
