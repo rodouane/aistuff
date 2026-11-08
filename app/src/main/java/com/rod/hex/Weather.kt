@@ -22,8 +22,11 @@ class Weather(private val context: Context) {
 
     fun refreshIfNeeded() {
         if (System.currentTimeMillis() - lastFetch < 30 * 60_000) return
-        lastFetch = System.currentTimeMillis()
-        io.execute { runCatching { fetch() } }
+        val app = HexApp.of(context)
+        if (!app.net.online || app.memory.city.isBlank()) return
+        io.execute {
+            runCatching { fetch() }.onSuccess { if (now != null) lastFetch = System.currentTimeMillis() }
+        }
     }
 
     private fun get(url: String): JSONObject {

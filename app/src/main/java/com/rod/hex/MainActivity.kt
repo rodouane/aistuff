@@ -96,6 +96,7 @@ class MainActivity : Activity(), HexEngine.Observer {
 
     override fun onResume() {
         super.onResume()
+        WifiPanel.closed(this)
         Kiosk.apply(this)
         if (!app.prefs.isConfigured) { dots.scene = DotMatrixView.Scene.SETUP; dots.setupMessage = "LANCE LE SCRIPT" }
         dots.invalidate()

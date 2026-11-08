@@ -25,7 +25,9 @@ class Net(context: Context) {
 
     private fun check(): Boolean {
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        // Validé par Android, ou au moins un Wi-Fi/données avec accès Internet annoncé
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) ||
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun update() {
