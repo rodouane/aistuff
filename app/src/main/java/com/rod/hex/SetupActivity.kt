@@ -20,6 +20,8 @@ class SetupActivity : Activity() {
             x.getString("voice")?.takeIf { it.isNotBlank() }?.let { p.ttsVoice = it.trim() }
             x.getString("model")?.takeIf { it.isNotBlank() }?.let { p.model = it.trim() }
             x.getString("pin")?.takeIf { it.isNotBlank() }?.let { p.pin = it.trim() }
+            // Sortie par câble : --es kiosque off  (ou on)
+            when (x.getString("kiosque")?.trim()) { "off" -> p.kioskOn = false; "on" -> p.kioskOn = true }
             x.getString("budget")?.toFloatOrNull()?.let { p.budgetCapEur = it }
         }
         Log.i("HexSetup", "configuré : claude=${p.claudeKey.isNotBlank()} picovoice=${p.picovoiceKey.isNotBlank()} tts=${p.ttsKey.isNotBlank()}")

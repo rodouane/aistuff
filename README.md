@@ -57,8 +57,21 @@ Le script installe Hex, le rend propriétaire du téléphone (mode kiosque), don
 | Écrire au lieu de parler | Glisse vers le haut |
 | Ajouter un Wi-Fi | Appui long sur l'écran |
 | Ouvrir les réglages cachés | 5 tapes rapides dans le coin en haut à gauche, puis ton code |
+| **Revenir à Android, sans écran ni code** | **5 appuis rapides sur volume haut** |
 
 Les réglages cachés permettent d'ajouter un Wi-Fi, de voir la dépense du mois, d'effacer la mémoire ou de quitter le mode kiosque.
+
+### Sorties de secours
+
+Hex ne doit jamais te bloquer. Il y a plusieurs façons de revenir à Android :
+
+1. **5 appuis rapides sur volume haut** : le mode kiosque se coupe tout de suite et les réglages d'Android s'ouvrent.
+2. Le menu caché (coin en haut à gauche, puis ton code) : « Quitter le mode kiosque », ou « Rendre le téléphone normal » pour retirer Hex complètement.
+3. **Appui long sur Power** : le menu Éteindre / Redémarrer reste disponible.
+4. Par câble : `adb shell am start -n com.rod.hex/.SetupActivity --es kiosque off`.
+5. Tant que Hex n'a jamais eu Internet, ou s'il n'a pas de clé Claude, le mode kiosque ne s'active pas du tout.
+
+Pour remettre le mode kiosque : menu caché, « Revenir en mode kiosque ».
 
 ### Mettre à jour
 

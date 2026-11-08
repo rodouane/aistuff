@@ -42,7 +42,8 @@ object Kiosk {
         val admin = admin(ctx)
         try {
             dpm.setLockTaskPackages(admin, arrayOf(ctx.packageName))
-            dpm.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
+            // Menu du bouton Power gardé : on peut toujours redémarrer ou éteindre.
+            dpm.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS)
 
             val home = IntentFilter(Intent.ACTION_MAIN).apply {
                 addCategory(Intent.CATEGORY_HOME)
@@ -76,7 +77,23 @@ object Kiosk {
         }
     }
 
-    /** Sortie de secours (code demandé à l'écran) : rend la main à Android. */
+    /**
+     * Le kiosque ne s'active que si tout va bien : clé Claude présente, Internet déjà vu une fois,
+     * et pas de sortie de secours demandée. Sinon le téléphone reste un Android normal.
+     */
+    fun sync(activity: Activity) {
+        val p = HexApp.of(activity).prefs
+        if (p.kioskOn && p.isConfigured && p.everOnline) apply(activity) else release(activity)
+    }
+
+    /** Retire complètement Hex comme propriétaire : le téléphone redevient normal et Hex désinstallable. */
+    fun removeOwner(activity: Activity) {
+        release(activity)
+        if (!isOwner(activity)) return
+        try { dpm(activity).clearDeviceOwnerApp(activity.packageName) } catch (e: Exception) { Log.w(TAG, "clearDeviceOwner", e) }
+    }
+
+    /** Rend la main à Android (sortie de secours). */
     fun release(activity: Activity) {
         try { activity.stopLockTask() } catch (_: Exception) {}
         if (!isOwner(activity)) return

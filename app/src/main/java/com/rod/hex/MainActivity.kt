@@ -25,6 +25,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.Toast
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -104,7 +105,8 @@ class MainActivity : Activity(), HexEngine.Observer {
     override fun onResume() {
         super.onResume()
         WifiPanel.closed(this)
-        Kiosk.apply(this)
+        if (app.net.online) app.prefs.everOnline = true
+        Kiosk.sync(this)
         if (!app.prefs.isConfigured) { dots.scene = DotMatrixView.Scene.SETUP; dots.setupMessage = "LANCE LE SCRIPT" }
         dots.invalidate()
     }
@@ -126,6 +128,7 @@ class MainActivity : Activity(), HexEngine.Observer {
             lp.screenBrightness = if (night) 0.02f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
             window.attributes = lp
             app.weather.refreshIfNeeded()
+            if (app.net.online && !app.prefs.everOnline) { app.prefs.everOnline = true; Kiosk.sync(this@MainActivity) }
             main.postDelayed(this, 60_000)
         }
     }
@@ -158,6 +161,15 @@ class MainActivity : Activity(), HexEngine.Observer {
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
             if (event.repeatCount == 0) engine?.trigger()
+            return true
+        }
+        // Sortie de secours sans écran : 5 appuis sur volume haut en moins de 4 secondes
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            if (event.repeatCount == 0) {
+                val now = System.currentTimeMillis()
+                if (now - volFirst > 4000) { volFirst = now; volPresses = 0 }
+                if (++volPresses >= 5) { volPresses = 0; emergencyExit() }
+            }
             return true
         }
         return super.onKeyDown(keyCode, event)
@@ -216,6 +228,17 @@ class MainActivity : Activity(), HexEngine.Observer {
         engine?.handleTyped(t)
     }
 
+    private var volFirst = 0L
+    private var volPresses = 0
+
+    /** Rend Android tout de suite, sans code : volume haut x5, ou l'option du menu. */
+    private fun emergencyExit() {
+        app.prefs.kioskOn = false
+        Kiosk.release(this)
+        Toast.makeText(this, "Mode kiosque coupé. Android est à toi.", Toast.LENGTH_LONG).show()
+        try { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {}
+    }
+
     // ---------- Sortie cachée : 5 tapes dans le coin haut gauche, puis le code ----------
     private fun secretCorner() {
         val now = System.currentTimeMillis()
@@ -232,7 +255,7 @@ class MainActivity : Activity(), HexEngine.Observer {
 
     private fun adminMenu() {
         val items = arrayOf("Ajouter un Wi-Fi", "Ouvrir le clavier", "Refaire la découverte (efface la mémoire)",
-            "Quitter le mode kiosque", "Revenir en mode kiosque")
+            "Quitter le mode kiosque", "Revenir en mode kiosque", "Rendre le téléphone normal (retirer Hex)")
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Hex · réglages  (dépense du mois : %.2f €)".format(app.budget.spentEur))
             .setItems(items) { _, which ->
@@ -243,8 +266,11 @@ class MainActivity : Activity(), HexEngine.Observer {
                         .setMessage("Effacer toute la mémoire de Hex ?")
                         .setPositiveButton("Effacer") { _, _ -> app.memory.reset() }
                         .setNegativeButton("Annuler", null).show()
-                    3 -> { Kiosk.release(this); startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) }
-                    4 -> Kiosk.apply(this)
+                    3 -> emergencyExit()
+                    4 -> { app.prefs.kioskOn = true; Kiosk.sync(this) }
+                    5 -> { app.prefs.kioskOn = false; Kiosk.removeOwner(this)
+                        Toast.makeText(this, "Hex n'est plus propriétaire. Tu peux le désinstaller.", Toast.LENGTH_LONG).show()
+                        try { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {} }
                 }
             }.show()
     }

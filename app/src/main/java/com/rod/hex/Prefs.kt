@@ -17,6 +17,15 @@ class Prefs(context: Context) {
         get() = sp.getFloat("budget_cap", 10f)
         set(v) = sp.edit().putFloat("budget_cap", v).apply()
 
+    /** Mode kiosque voulu. Faux après une sortie de secours, jusqu'à « Revenir en mode kiosque ». */
+    var kioskOn: Boolean
+        get() = sp.getBoolean("kiosk_on", true)
+        set(v) = sp.edit().putBoolean("kiosk_on", v).apply()
+    /** Hex a déjà eu Internet au moins une fois. Avant ça, jamais de kiosque. */
+    var everOnline: Boolean
+        get() = sp.getBoolean("ever_online", false)
+        set(v) = sp.edit().putBoolean("ever_online", v).apply()
+
     val isConfigured: Boolean get() = claudeKey.isNotBlank()
 
     private fun str(key: String, def: String = "") = object : kotlin.properties.ReadWriteProperty<Any?, String> {
