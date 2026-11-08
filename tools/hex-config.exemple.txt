@@ -1,0 +1,18 @@
+# Copie ce fichier en "hex-config.txt" (même dossier) et remplis les valeurs.
+# Ce fichier reste sur ton ordinateur : il n'est jamais envoyé sur GitHub.
+
+# Clé API Claude (platform.claude.com > API Keys), commence par sk-ant-
+CLAUDE=
+
+# AccessKey Picovoice (console.picovoice.ai), pour « Hey Hex »
+PICOVOICE=
+
+# Clé API Google Cloud avec l'API Text-to-Speech activée (voix réaliste). Facultatif.
+TTS=
+
+# Code à 4 chiffres pour ouvrir les réglages cachés de Hex
+PIN=2580
+
+# Modèle Claude et plafond mensuel en euros
+MODEL=claude-haiku-5-5
+BUDGET=10
