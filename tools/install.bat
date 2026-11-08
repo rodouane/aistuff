@@ -37,7 +37,7 @@ if defined TTS set ARGS=!ARGS! --es tts !TTS!
 if defined PIN set ARGS=!ARGS! --es pin !PIN!
 if defined MODEL set ARGS=!ARGS! --es model !MODEL!
 if defined BUDGET set ARGS=!ARGS! --es budget !BUDGET!
-adb shell am start -S -n %PKG%/.SetupActivity !ARGS!
+adb shell am start -S -f 0x10008000 -n %PKG%/.SetupActivity !ARGS!
 
 echo.
 echo Termine. Hex va se presenter dans quelques secondes.
