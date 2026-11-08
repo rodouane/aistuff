@@ -74,7 +74,6 @@ class MainActivity : Activity(), HexEngine.Observer {
 
         val gestures = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
-                if (e.x < dots.width * 0.18f && e.y < dots.height * 0.12f) { secretCorner(); return true }
                 engine?.trigger(); return true
             }
             override fun onLongPress(e: MotionEvent) { WifiPanel.show(this@MainActivity) }
@@ -83,7 +82,13 @@ class MainActivity : Activity(), HexEngine.Observer {
                 return false
             }
         })
-        dots.setOnTouchListener { _, ev -> gestures.onTouchEvent(ev) }
+        dots.setOnTouchListener { _, ev ->
+            // Coin secret (haut gauche) : chaque appui compte, même rapide
+            if (ev.x < dots.width * 0.22f && ev.y < dots.height * 0.12f) {
+                if (ev.actionMasked == MotionEvent.ACTION_DOWN) secretCorner()
+                true
+            } else gestures.onTouchEvent(ev)
+        }
 
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION,
@@ -212,7 +217,7 @@ class MainActivity : Activity(), HexEngine.Observer {
     // ---------- Sortie cachée : 5 tapes dans le coin haut gauche, puis le code ----------
     private fun secretCorner() {
         val now = System.currentTimeMillis()
-        if (now - cornerFirst > 3000) { cornerFirst = now; cornerTaps = 0 }
+        if (now - cornerFirst > 4000) { cornerFirst = now; cornerTaps = 0 }
         cornerTaps++
         if (cornerTaps < 5) return
         cornerTaps = 0
