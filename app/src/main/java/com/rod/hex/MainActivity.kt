@@ -288,9 +288,11 @@ class MainActivity : Activity(), HexEngine.Observer {
 
     private fun adminMenu() {
         val items = arrayOf("Ajouter un Wi-Fi", "Ouvrir le clavier", "Refaire la découverte (efface la mémoire)",
-            "Quitter le mode kiosque", "Revenir en mode kiosque", "Rendre le téléphone normal (retirer Hex)", "Choisir la voix")
+            "Quitter le mode kiosque", "Revenir en mode kiosque", "Rendre le téléphone normal (retirer Hex)", "Choisir la voix",
+            "Rappels en cours", "Restaurer la mémoire d'un jour précédent",
+            if (app.prefs.webSearch) "Recherche web : activée (toucher pour couper)" else "Recherche web : coupée (toucher pour activer)")
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("Hex · réglages  (dépense du mois : %.2f €)".format(app.budget.spentEur))
+            .setTitle("Hex · réglages  (dépense du mois : %.2f €, %d recherches)".format(app.budget.spentEur, app.budget.searchesThisMonth))
             .setItems(items) { _, which ->
                 when (which) {
                     0 -> WifiPanel.show(this)
@@ -302,10 +304,43 @@ class MainActivity : Activity(), HexEngine.Observer {
                     3 -> emergencyExit()
                     4 -> { app.prefs.kioskOn = true; Kiosk.sync(this) }
                     6 -> chooseVoice()
+                    7 -> showReminders()
+                    8 -> restoreMemory()
+                    9 -> { app.prefs.webSearch = !app.prefs.webSearch
+                        Toast.makeText(this, if (app.prefs.webSearch) "Recherche web activée" else "Recherche web coupée", Toast.LENGTH_SHORT).show() }
                     5 -> { app.prefs.kioskOn = false; Kiosk.removeOwner(this)
                         Toast.makeText(this, "Hex n'est plus propriétaire. Tu peux le désinstaller.", Toast.LENGTH_LONG).show()
                         try { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {} }
                 }
             }.show()
+    }
+
+    // ---------- Rappels et sauvegardes de la mémoire ----------
+    private fun showReminders() {
+        val list = app.reminders.upcoming()
+        if (list.isEmpty()) { Toast.makeText(this, "Aucun rappel en cours.", Toast.LENGTH_LONG).show(); return }
+        val labels = list.map { (if (it.isTimer) "Minuteur " + it.text else it.text) + "\n" + Reminders.describe(it.at) }.toTypedArray()
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Toucher un rappel pour l'annuler")
+            .setItems(labels) { _, i -> app.reminders.cancelId(list[i].id)
+                Toast.makeText(this, "Rappel annulé.", Toast.LENGTH_SHORT).show() }
+            .setNegativeButton("Fermer", null).show()
+    }
+
+    private fun restoreMemory() {
+        val dates = app.memory.backupDates()
+        if (dates.isEmpty()) { Toast.makeText(this, "Pas encore de sauvegarde.", Toast.LENGTH_LONG).show(); return }
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Revenir à la mémoire du…")
+            .setItems(dates.toTypedArray()) { _, i ->
+                AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setMessage("Remplacer la mémoire actuelle par celle du ${dates[i]} ? (La mémoire d'aujourd'hui reste sauvegardée.)")
+                    .setPositiveButton("Restaurer") { _, _ ->
+                        val ok = app.memory.restore(dates[i])
+                        Toast.makeText(this, if (ok) "Mémoire restaurée." else "Échec de la restauration.", Toast.LENGTH_LONG).show()
+                    }
+                    .setNegativeButton("Annuler", null).show()
+            }
+            .setNegativeButton("Fermer", null).show()
     }
 }
