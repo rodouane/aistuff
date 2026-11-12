@@ -13,6 +13,12 @@ class Prefs(context: Context) {
     var ttsVoice: String by str("tts_voice", "fr-FR-Chirp3-HD-Charon")
     var model: String by str("model", "claude-haiku-5-5")
     var pin: String by str("pin", "2580")
+    /** Modèle pour « réfléchis bien » : plus fort, utilisé seulement à la demande. */
+    var deepModel: String by str("deep_model", "claude-sonnet-5-5")
+    /** Recherche web pendant les réponses (environ 1 centime par recherche). */
+    var webSearch: Boolean
+        get() = sp.getBoolean("web_search", true)
+        set(v) = sp.edit().putBoolean("web_search", v).apply()
     /** Voix Android choisie dans le menu caché (vide = automatique). */
     var androidVoice: String by str("android_voice")
     var voicePitch: Float

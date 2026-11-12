@@ -10,6 +10,7 @@ class HexApp : Application() {
     lateinit var net: Net
     lateinit var glyphs: Glyphs
     lateinit var weather: Weather
+    lateinit var reminders: Reminders
 
     override fun onCreate() {
         super.onCreate()
@@ -19,6 +20,7 @@ class HexApp : Application() {
         net = Net(this)
         glyphs = Glyphs(this)
         weather = Weather(this)
+        reminders = Reminders(this)
         glyphs.start()
     }
 

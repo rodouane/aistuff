@@ -29,6 +29,7 @@ class SetupActivity : Activity() {
             x.getString("tts")?.takeIf { it.isNotBlank() }?.let { p.ttsKey = it.trim() }
             x.getString("voice")?.takeIf { it.isNotBlank() }?.let { p.ttsVoice = it.trim() }
             x.getString("model")?.takeIf { it.isNotBlank() }?.let { p.model = it.trim() }
+            x.getString("deep")?.takeIf { it.isNotBlank() }?.let { p.deepModel = it.trim() }
             x.getString("pin")?.takeIf { it.isNotBlank() }?.let { p.pin = it.trim() }
             // Sortie par câble : --es kiosque off  (ou on)
             when (x.getString("kiosque")?.trim()) { "off" -> p.kioskOn = false; "on" -> p.kioskOn = true }

@@ -59,7 +59,17 @@ Le script installe Hex, le rend propriétaire du téléphone (mode kiosque), don
 | Ouvrir les réglages cachés | 5 tapes rapides dans le coin en haut à gauche, puis ton code |
 | **Revenir à Android, sans écran ni code** | **5 appuis rapides sur volume haut** |
 
-Les réglages cachés permettent d'ajouter un Wi-Fi, de voir la dépense du mois, d'effacer la mémoire ou de quitter le mode kiosque.
+Les réglages cachés permettent d'ajouter un Wi-Fi, de voir la dépense du mois, d'effacer ou de restaurer la mémoire, de voir et annuler les rappels, de couper la recherche web, ou de quitter le mode kiosque.
+
+### Ce que Hex sait faire
+
+- **Se souvenir** : après chaque conversation, il note ce qui a changé (faits sur toi, projets, décisions, journal). Il ne réécrit jamais toute sa mémoire, il ajoute ou corrige point par point. Une sauvegarde est faite chaque jour (14 jours gardés). Si Internet manque, la conversation est gardée et mémorisée plus tard.
+- **Suivre tes projets** : il voit les échéances proches ou dépassées, et les projets dont tu ne lui as pas parlé depuis dix jours.
+- **Rappels et minuteurs** : « rappelle-moi demain à 9 h d'appeler le comptable », « minuteur de 10 minutes ». Ils survivent à un redémarrage.
+- **Running** : dis-lui « j'ai couru 8 km », il les compte tout de suite et te dit où tu en es (semaine du lundi au dimanche, ou mois).
+- **Chercher sur le web** : actualité, horaires, résultats… (environ 1 centime par recherche, compté dans le budget, coupé automatiquement à 80 % du budget).
+- **Réfléchir plus fort** : commence par « réfléchis bien » ou « prends le temps » et il passe sur un modèle plus puissant pour cette réponse.
+- **Garder le fil** : si tu reviens dans les trois heures, il se souvient de ce que vous venez de dire.
 
 ### Sorties de secours
 
@@ -90,14 +100,18 @@ Pour remettre le mode kiosque : menu caché, « Revenir en mode kiosque ».
 - Mot d'activation : Vosk (libre, sur le téléphone, modèle anglais small). Transcription : reconnaissance vocale d'Android, en français.
 - Voix : Google Cloud Text-to-Speech (`fr-FR-Chirp3-HD-Charon`), avec la voix d'Android en secours.
 - Glyph : SDK Glyph de Nothing, téléchargé par la CI et appelé par réflexion (Hex marche sans).
-- Mémoire : `memory.json` dans le stockage privé de l'app (profil, projets, journal, running), mise à jour par Claude après chaque conversation.
+- Outils pendant la conversation : recherche web (outil serveur d'Anthropic), noter, course, rappel, minuteur, annuler.
+- « Réfléchis bien » : `claude-sonnet-5-5` pour ce tour (réglable avec `--es deep <modèle>` envoyé à `SetupActivity`).
+- Mémoire : `memory.json` dans le stockage privé de l'app (faits numérotés, projets, journal, archive mensuelle, running). Après chaque conversation, Claude renvoie une liste d'opérations appliquées par le code. Sauvegardes quotidiennes dans `memory-backups/`, conversations en attente dans `memory-pending.json`.
+- Rappels : `reminders.json`, vérifiés toutes les 15 secondes.
 - Météo : Open-Meteo, sans clé.
 
 | Fichier | Rôle |
 | --- | --- |
 | `HexEngine.kt` | Chef d'orchestre : réveil, écoute, réflexion, parole, relance, minuteurs |
-| `Brain.kt` | Personnalité, appels à Claude, mise à jour de la mémoire |
-| `Memory.kt` | Les carnets de Hex |
+| `Brain.kt` | Personnalité, appels à Claude, outils, mise à jour de la mémoire |
+| `Memory.kt` | Les carnets de Hex, sauvegardes, file d'attente |
+| `Reminders.kt` | Rappels et minuteurs |
 | `Voice.kt` | Voix réaliste et voix de secours, niveau sonore pour l'animation |
 | `Listener.kt` / `WakeWord.kt` | Transcription et « Hey Hex » |
 | `DotMatrixView.kt` / `DotFont.kt` | L'écran en points |

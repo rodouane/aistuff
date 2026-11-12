@@ -39,8 +39,12 @@ class HexEngine(private val context: Context) {
     private val session = mutableListOf<Brain.Turn>()
     private var followUp = false
     private var offlineQueued = false
-    private val timers = mutableListOf<Runnable>()
     @Volatile private var turn = 0
+    /** La conversation précédente, pour que Hex garde le fil si Rod revient peu après. */
+    private var lastSession: List<Brain.Turn> = emptyList()
+    private var lastSessionEnd = 0L
+    /** Rappels arrivés à échéance, dits dès que Hex est libre. */
+    private val dueQueue = mutableListOf<Reminders.Item>()
 
     fun observe(o: Observer) { observers.add(o); o.onState(state) }
     fun unobserve(o: Observer) { observers.remove(o) }
@@ -62,11 +66,16 @@ class HexEngine(private val context: Context) {
         app.net.listen { online ->
             main.post {
                 if (state == State.IDLE) setState(State.IDLE)
-                if (online) offlineQueued = true
+                if (online) {
+                    offlineQueued = true
+                    io.execute { brain.retryQueued() }
+                }
             }
         }
         setState(State.IDLE)
         wake.start()
+        io.execute { brain.retryQueued() }
+        main.postDelayed(reminderTick, 3000)
         // Premier lancement : Hex se présente et lance la découverte
         if (!app.memory.onboarded && app.prefs.isConfigured) {
             main.postDelayed({ if (state == State.IDLE) greetFirstTime() }, 2500)
@@ -113,7 +122,7 @@ class HexEngine(private val context: Context) {
 
     private fun handle(text: String) {
         observers.forEach { it.onTranscript(true, text, false) }
-        Offline.tryAnswer(text, ::startTimer)?.let { local ->
+        Offline.tryAnswer(text, app.net.online, ::startTimer)?.let { local ->
             session.add(Brain.Turn(true, text)); session.add(Brain.Turn(false, local))
             speakLocal(local); return
         }
@@ -129,7 +138,8 @@ class HexEngine(private val context: Context) {
         session.add(Brain.Turn(true, text))
         setState(State.THINKING)
         val history = session.toList()
-        val queued = offlineQueued
+        val minutesAgo = if (lastSessionEnd > 0) (System.currentTimeMillis() - lastSessionEnd) / 60_000 else -1
+        val moment = Brain.Moment(offlineQueued, if (session.size <= 1) lastSession else emptyList(), minutesAgo)
         offlineQueued = false
         voice.begin(voiceListener)
         val myTurn = ++turn
@@ -137,7 +147,7 @@ class HexEngine(private val context: Context) {
             val say = { s: String -> if (myTurn == turn) voice.say(s) }
             val splitter = SentenceSplitter { s -> say(s) }
             try {
-                val full = brain.reply(history, queued) { chunk -> splitter.feed(chunk) }
+                val full = brain.reply(history, moment) { chunk -> splitter.feed(chunk) }
                 splitter.flush()
                 main.post { session.add(Brain.Turn(false, full)); observers.forEach { it.onTranscript(false, full, false) } }
                 if (app.budget.nearCap && !app.budget.blocked) say("Au fait, on approche de ton budget du mois.")
@@ -146,7 +156,7 @@ class HexEngine(private val context: Context) {
             } catch (e: Exception) {
                 Log.w(tag, "reply", e)
                 splitter.flush()
-                say("J'ai un souci pour joindre mon cerveau. Réessaie dans un instant.")
+                say(brain.explain(e))
             }
             if (myTurn == turn) voice.finish()
         }
@@ -182,27 +192,54 @@ class HexEngine(private val context: Context) {
         wake.start()
         val transcript = session.filter { !it.text.startsWith("(") }.toList()
         session.clear()
-        if (transcript.any { it.fromRod } && app.net.online) {
-            io.execute { brain.updateMemory(transcript) }
+        if (transcript.isNotEmpty()) { lastSession = transcript; lastSessionEnd = System.currentTimeMillis() }
+        if (transcript.any { it.fromRod }) {
+            // Mémorisée tout de suite si possible, sinon gardée et retentée plus tard
+            io.execute { brain.rememberOrQueue(transcript) }
         }
+        announceDue()
     }
 
     private fun startTimer(minutes: Int, label: String) {
-        val r = object : Runnable {
-            override fun run() {
-                timers.remove(this)
-                app.glyphs.set(Glyphs.Mode.ALERT)
-                repeat(3) { i -> main.postDelayed({ beep(long = true) }, i * 900L) }
-                main.postDelayed({
-                    voice.begin(voiceListener)
-                    setState(State.THINKING)
-                    voice.say("Rod, ton minuteur $label est terminé.")
-                    voice.finish()
-                }, 2800)
+        app.reminders.add(System.currentTimeMillis() + minutes * 60_000L, label, "minuteur")
+    }
+
+    /** Toutes les 15 secondes : les rappels et minuteurs arrivés à échéance. */
+    private val reminderTick = object : Runnable {
+        override fun run() {
+            try {
+                val due = app.reminders.takeDue()
+                if (due.isNotEmpty()) { dueQueue.addAll(due); announceDue() }
+            } catch (e: Exception) { Log.w(tag, "rappels", e) }
+            main.postDelayed(this, 15_000)
+        }
+    }
+
+    /** Dit les rappels en attente, seulement quand Hex ne parle pas et n'écoute pas. */
+    private fun announceDue() {
+        if (dueQueue.isEmpty() || state != State.IDLE) return
+        val items = dueQueue.toList()
+        dueQueue.clear()
+        val now = System.currentTimeMillis()
+        val phrases = items.map { r ->
+            val late = now - r.at > 10 * 60_000
+            when {
+                r.isTimer -> "Rod, ton minuteur" + (if (r.text.isNotBlank()) " " + r.text else "") + " est terminé."
+                late -> "Rod, un rappel que je n'ai pas pu te dire à l'heure : " + r.text + "."
+                else -> "Rod, petit rappel : " + r.text + "."
             }
         }
-        timers.add(r)
-        main.postDelayed(r, minutes * 60_000L)
+        app.glyphs.set(Glyphs.Mode.ALERT)
+        val beeps = if (items.any { it.isTimer }) 3 else 1
+        repeat(beeps) { i -> main.postDelayed({ beep(long = true) }, i * 900L) }
+        main.postDelayed({
+            if (state != State.IDLE) { dueQueue.addAll(0, items); return@postDelayed }
+            voice.begin(voiceListener)
+            setState(State.THINKING)
+            phrases.forEach { voice.say(it) }
+            voice.finish()
+            phrases.forEach { p -> observers.forEach { it.onTranscript(false, p, false) } }
+        }, beeps * 900L + 300)
     }
 
     private fun beep(long: Boolean = false) {
@@ -214,6 +251,7 @@ class HexEngine(private val context: Context) {
     }
 
     fun release() {
+        main.removeCallbacks(reminderTick)
         wake.release(); voice.release(); listener.cancel()
     }
 
@@ -243,22 +281,32 @@ class HexEngine(private val context: Context) {
     }
 }
 
-/** Ce que Hex sait faire sans Internet : l'heure, la date, des minuteurs. */
+/** Ce que Hex sait faire sans Internet (et tout de suite, sans payer) : l'heure, la date, des minuteurs. */
 object Offline {
-    private val timerRe = Regex("""minuteur\s+(?:de\s+)?(\d+)\s*(min|minute|minutes|h|heure|heures)""", RegexOption.IGNORE_CASE)
+    private val timerRe = Regex("""minuteur\s+(?:de\s+)?(\d+)\s*(min|minute|minutes|h|heure|heures)\b""", RegexOption.IGNORE_CASE)
+    // Seulement la vraie question « quelle heure est-il », pas « à quelle heure est mon rendez-vous »
+    private val hourRe = Regex("""^(?:hex[ ,]*)?(?:il est )?quelle heure(?: il est| est-il| est il)?\s*\??$""")
+    private val dateRe = Regex("""^(?:hex[ ,]*)?(?:on est )?quel jour (?:on est|sommes-nous|est-on|on est aujourd'hui)\s*\??$""")
 
-    fun tryAnswer(text: String, startTimer: (Int, String) -> Unit): String? {
-        val t = text.lowercase()
+    fun tryAnswer(text: String, online: Boolean, startTimer: (Int, String) -> Unit): String? {
+        val t = text.lowercase().trim().trimEnd('.', '!')
         timerRe.find(t)?.let { m ->
+            // « annule le minuteur de 5 minutes » : on laisse Claude gérer
+            if (online && Regex("""annul|arr[eê]t|stop|combien""").containsMatchIn(t)) return null
             val n = m.groupValues[1].toInt()
-            val minutes = if (m.groupValues[2].startsWith("h")) n * 60 else n
-            val label = "de $n ${if (m.groupValues[2].startsWith("h")) "heure" + (if (n > 1) "s" else "") else "minute" + (if (n > 1) "s" else "")}"
+            val hours = m.groupValues[2].startsWith("h")
+            val minutes = if (hours) n * 60 else n
+            val label = "de $n ${if (hours) "heure" + (if (n > 1) "s" else "") else "minute" + (if (n > 1) "s" else "")}"
             startTimer(minutes, label)
             return "C'est parti, minuteur $label."
         }
-        if (Regex("""quelle heure|l'heure qu'il est""").containsMatchIn(t)) {
+        if (hourRe.matches(t) || (!online && t.contains("quelle heure"))) {
             val n = LocalTime.now()
-            return "Il est ${n.hour} heures ${if (n.minute > 0) n.minute.toString() else ""}.".replace("  ", " ")
+            return if (n.minute == 0) "Il est ${n.hour} heures pile." else "Il est ${n.hour} heures ${n.minute}."
+        }
+        if (dateRe.matches(t) || (!online && t.contains("quel jour"))) {
+            val d = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM", java.util.Locale.FRENCH))
+            return "On est le $d."
         }
         return null
     }
